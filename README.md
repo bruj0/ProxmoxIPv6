@@ -10,6 +10,8 @@
     - [WAN](#wan)
     - [LAN](#lan)
   - [WireGuard](#wireguard)
+    - [Proxmox KVM](#proxmox-kvm)
+    - [Home network](#home-network)
   - [Routing in pfSense](#routing-in-pfsense)
   - [Firewall Rules](#firewall-rules)
   - [LAN DHCPv6](#lan-dhcpv6)
@@ -127,24 +129,28 @@ With this configuration:
 | Tunnel Subnet | `fda2:5d88:d5a3:1d4d::/64`        |
 
 
-Proxmox KVM
+#### Proxmox KVM
 
 | Item           | Value                                                     |
 | -------------- | --------------------------------------------------------- |
-| WAN IP Address | `Proxmox IPv4`                                            |
-| Tunnel Address | `fda2:5d88:d5a3:1d4d::1/64` (Def ipv6 GW on Home network) |
+| Endpoint IP Address | `Home IPv4`                                            |
+| TUN IPv6 Address | `fda2:5d88:d5a3:1d4d::1/64`                         |
 | Listen Port    | `51820`                                                   |
-| LAN Subnet     | `rangeB:8008::/77`                                        |
+| SatelliteGW | `fda2:5d88:d5a3:1d4d::2` via TUN interface |
+| Static Route| 	`rangeB:8008::/77`	via SatelliteGW |
 
 ![pfSense](images/pfsense_wireguard.png)
 
-Home network
+#### Home network
 | Item           | Value                                               |
 | -------------- | --------------------------------------------------- |
-| WAN IP Address | `Home IPv4`                                         |
-| Tunnel Address | `fda2:5d88:d5a3:1d4d::2/64` (TUN interface IP)      |
+| Endpoint IP Address | `Proxmox IPv4`                                         |
+| TUN IPv6 Address | `fda2:5d88:d5a3:1d4d::2/64`     |
 | Listen Port    | `51820`                                             |
-| LAN Subnet     | `2a01:4f8:191:14ad:8008::1/77` (LAN IPv6 interface) |
+| LAN IPv6     | `rangeB:8008::1/77`  |
+| GW IPv6 | `fda2:5d88:d5a3:1d4d::1/64` via TUN  |
+| DHCPv6 on LAN|  `rangeB:8008:1::` to `rangeB:800f:ffff:ffff:ffff`
+| RA on LAN| Assisted|
 
 ![pfSense](images/pfsense_wireguardPeer.png)
 
