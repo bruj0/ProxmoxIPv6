@@ -1,7 +1,7 @@
 - [Diagram](#diagram)
 - [Objectives](#objectives)
 - [Requirements](#requirements)
-  - [IPv6 /64 network and single IPv4](#ipv6-64-network-and-single-ipv4)
+  - [A IPv6 /64 network and a single IPv4](#a-ipv6-64-network-and-a-single-ipv4)
 - [Hypervisor](#hypervisor)
   - [Bridges and Network interfaces](#bridges-and-network-interfaces)
 - [Proxmox interface configuration](#proxmox-interface-configuration)
@@ -9,6 +9,7 @@
   - [Interfaces assignments in pfSense](#interfaces-assignments-in-pfsense)
     - [WAN](#wan)
     - [LAN](#lan)
+  - [WireGuard](#wireguard)
   - [Routing in pfSense](#routing-in-pfsense)
   - [Firewall Rules](#firewall-rules)
   - [LAN DHCPv6](#lan-dhcpv6)
@@ -18,23 +19,28 @@
 ## Diagram
 ![Diagram](images/ProxmoxIPv6.png)
 ## Objectives 
-* Automatic provisioning of IPv6
+* Fully routed IPv6 and NATed IPv4 to VMs
    * Each VM will receive a IPv6 from a /77 subnet
      * Each container under this VM will receive an IPv6 automatically.
-* Fully routed IPv6 traffic between VM/container
 * IPv4 to IPv6 Tunnel using WireGuard
 * Out of band Firewall
-   * Firewall controlling the access to all public IPv6
-   * Having an out of band firewall, meaning outside of the VM, will increase the security of the system
-* 
+   * PfSense controlling the access to all public traffic
+   * Having an out of band firewall, meaning outside of the VMs. This will increase the security of the system
+
 ## Requirements
-### IPv6 /64 network and single IPv4
-For this article, we will use a /64 IPv6 network because its what our Hosting provider (Hetzner) gives us.
-This will be divided in 2 /65 Ranges:
+### A IPv6 /64 network and a single IPv4
+For this article, we will use a /64 IPv6 network because its what commonly assiged by ISPs or hosting providers.
+This will be divided in 2 /65 subnets:
 * RangeA: Will be used in the Host side, range:: to range:8000::
-
-* RangeB: VM LAN, Containers and Tunnel, range:8000:: to range:ffff:ffff:ffff:ffff
-
+  * rangeA:14ad::/65
+    * rangeA::2 (eth0)
+    * rangeA::3 (vmbr0)
+    * rangeA::4 (WAN in PfSense)
+* RangeB: VM LAN, Containers and Tunnel, range:8000:: to range:ffff:ffff:ffff:ffff, divided in 4096 /77 subnets
+  * rangeB:8000::/65
+    * rangeB:8000::/77 (LAN in PfSense)
+    * rangeB:8008::/77 (WireGuard Tunnel)
+    * rangeB:8010::/77 (Docker in VM1)
 
 ## Hypervisor
 We will need a way to provision VMs, for this article we selected Proxmox
@@ -110,6 +116,37 @@ Default gateways for the VM hosts.
 #### LAN
 * IPv4: 172.16.0.2/16 (NATed from Host)
 * IPv6: rangeB:8000::2 /77
+### WireGuard
+We configure WireGuard in a Site-to-Site setup as described here: https://docs.netgate.com/pfsense/en/latest/recipes/wireguard-s2s.html
+
+With this configuration:
+
+| Item          | Value                             |
+| ------------- | --------------------------------- |
+| Design        | Site-to-Site, one peer per tunnel |
+| Tunnel Subnet | `fda2:5d88:d5a3:1d4d::/64`                   |
+
+
+Proxmox KVM
+
+| Item           | Value            |
+| -------------- | ---------------- |
+| WAN IP Address | `Proxmox IPv4`  |
+| Tunnel Address | `fda2:5d88:d5a3:1d4d::1/64` (Def ipv6 GW on Home network)|
+| Listen Port    | `51820`          |
+| LAN Subnet     | `rangeB:8008::/77`   |
+
+![pfSense](images/pfsense_wireguard.png)
+
+Home network
+| Item           | Value            |
+| -------------- | ---------------- |
+| WAN IP Address | `Home IPv4`  |
+| Tunnel Address | `fda2:5d88:d5a3:1d4d::2/64` (TUN interface IP)|
+| Listen Port    | `51820`          |
+| LAN Subnet     | `2a01:4f8:191:14ad:8008::1/77` (LAN IPv6 interface)  |
+
+![pfSense](images/pfsense_wireguardPeer.png)
 
 ### Routing in pfSense
 
