@@ -124,27 +124,27 @@ With this configuration:
 | Item          | Value                             |
 | ------------- | --------------------------------- |
 | Design        | Site-to-Site, one peer per tunnel |
-| Tunnel Subnet | `fda2:5d88:d5a3:1d4d::/64`                   |
+| Tunnel Subnet | `fda2:5d88:d5a3:1d4d::/64`        |
 
 
 Proxmox KVM
 
-| Item           | Value            |
-| -------------- | ---------------- |
-| WAN IP Address | `Proxmox IPv4`  |
-| Tunnel Address | `fda2:5d88:d5a3:1d4d::1/64` (Def ipv6 GW on Home network)|
-| Listen Port    | `51820`          |
-| LAN Subnet     | `rangeB:8008::/77`   |
+| Item           | Value                                                     |
+| -------------- | --------------------------------------------------------- |
+| WAN IP Address | `Proxmox IPv4`                                            |
+| Tunnel Address | `fda2:5d88:d5a3:1d4d::1/64` (Def ipv6 GW on Home network) |
+| Listen Port    | `51820`                                                   |
+| LAN Subnet     | `rangeB:8008::/77`                                        |
 
 ![pfSense](images/pfsense_wireguard.png)
 
 Home network
-| Item           | Value            |
-| -------------- | ---------------- |
-| WAN IP Address | `Home IPv4`  |
-| Tunnel Address | `fda2:5d88:d5a3:1d4d::2/64` (TUN interface IP)|
-| Listen Port    | `51820`          |
-| LAN Subnet     | `2a01:4f8:191:14ad:8008::1/77` (LAN IPv6 interface)  |
+| Item           | Value                                               |
+| -------------- | --------------------------------------------------- |
+| WAN IP Address | `Home IPv4`                                         |
+| Tunnel Address | `fda2:5d88:d5a3:1d4d::2/64` (TUN interface IP)      |
+| Listen Port    | `51820`                                             |
+| LAN Subnet     | `2a01:4f8:191:14ad:8008::1/77` (LAN IPv6 interface) |
 
 ![pfSense](images/pfsense_wireguardPeer.png)
 
