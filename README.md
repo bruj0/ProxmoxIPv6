@@ -56,7 +56,7 @@ More information:
 ### Bridges and Network interfaces
 We will create 2 bridges and use the phisical network interface.
 ![Bridges](images/bridges.png)
-* **eth0:** Phisicall interface where we get our IPv4 and v6 traffic.
+* **eth0:** Physical interface where we get our IPv4 and v6 traffic.
 * **vmbr0**: Will be shared to PfSense as WAN
 * **vmbr1**: Internal IPv4 network, will be shared as LAN
 
@@ -158,7 +158,7 @@ With this configuration:
 
 The default GW for IPv6 is rangeA::3 trough the WAN interface, this is because this interface is connected to the KVM bridge that has access to the connection to the internet.
 
-Each Docker network in the VM host gets a static route so they can comunicate between each other.
+Each Docker network in the VM host gets a static route so they can communicate between each other.
 
 For this we need to define a Gateway  as rangeB:8000:1:0:1 (VM1) trough the LAN interface called "DockerVM1" in the picture.
 
@@ -168,7 +168,7 @@ SatelliteGW is the gateway on the other side of the WireGuard Tunnel.
 
 Finally we add a 2 static routes:
 * Containers in VM1:  Our container subnet rangeB:8010::/77 can be reached trough the "DockerVM1" gateway that means trough the LAN interface via the host at rangeB:8000:1:0:1
-* IPv4 to Ipv6 Tunnel: rangeB:8008::/77 will be served to clients connected to the WireGuard tunnel via the otherside of the TUN1 interface at fda2:5d88:d5a3:1d4d::2
+* IPv4 to Ipv6 Tunnel: rangeB:8008::/77 will be served to clients connected to the WireGuard tunnel via the other side of the TUN1 interface at fda2:5d88:d5a3:1d4d::2
 
 ![pfSense bridge](images/pfsense_static_routes.png)
 
