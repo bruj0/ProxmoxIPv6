@@ -19,7 +19,7 @@
   - [](#)
 - [VM configuration](#vm-configuration)
   - [Docker configuration](#docker-configuration)
-
+- [Create a Debian Template](#create-a-debian-template)
 ## Install
 For normal install go to: https://www.proxmox.com/en/proxmox-ve/get-started
 
@@ -339,4 +339,18 @@ round-trip min/avg/max = 5.769/5.827/5.885 ms
 ```
 
 From here we can see we got rangeB:ac11:2/77 and ping to Google over IPv6 works.
+
+# Create a Debian template
+From https://cloud.debian.org/images/cloud/ Download the latest qcow2 file.
+```
+wget https://cloud.debian.org/images/cloud/bullseye/20230515-1381/debian-11-genericcloud-amd64-20230515-1381.qcow2
+qm create 9500 --name Debian11CloudInit --net0 virtio,bridge=vmbr0
+qm importdisk 9500 debian-11-genericcloud-amd64-20220613-1045.qcow2 local-lvm
+qm set 9500 --scsihw virtio-scsi-pci --scsi0 local-lvm:vm-9500-disk-0
+qm set 9500 --ide2 local-lvm:cloudinit
+qm set 9500 --boot c --bootdisk scsi0
+qm set 9500 --serial0 socket --vga serial0
+qm set 9500 --agent enabled=1 #optional but recommended
+qm template 9500
+```
 
