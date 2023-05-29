@@ -195,12 +195,11 @@ We will add 3 network cards and configure each one to one of the Bridges we crea
 
 ### Interfaces assignments in pfSense
 ![pfSense](images/pfsense_interfaces2.png)
-#### WAN
+#### LAN6 (WAN)
 Default gateways for the VM hosts.
 * IPv6: rangeA::4 /65
 #### LAN
 * IPv4: 172.16.0.2/16 (NATed from Host)
-* IPv6: rangeB:8000::2 /77
 ### WireGuard
 We configure WireGuard in a Site-to-Site setup as described here: https://docs.netgate.com/pfsense/en/latest/recipes/wireguard-s2s.html
 
