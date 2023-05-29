@@ -264,9 +264,10 @@ The rules to allow a Port in our IPv6 networks is done in the WAN interface.
 Allow all IPv4 and IPv6 in the LAN interface
 ![pfSense lan fw](images/pfsense_lan_fw.png)
 ### LAN DHCPv6
+This is the VM ipv6 range that will be managed by the DHCP
 * Enable DHCPv6 server with range: rangeB:8000:2:: to rangeB:ffff:ffff:ffff
 * Enable Assisted RA
-* 
+* NO dhcpv6 on LAN6(wan)
 ### 
 ## VM configuration
 * ifconfig
