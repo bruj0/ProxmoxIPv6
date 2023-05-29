@@ -20,6 +20,20 @@
 - [VM configuration](#vm-configuration)
   - [Docker configuration](#docker-configuration)
 - [Create a Debian Template](#create-a-debian-template)
+
+## Description
+This howto will help you set up a Promox host with a fully routed IPv4 and IPv6 network for VMs with an out of band firewall.
+
+We create 2 internal networks between the host and the Firewall
+
+IPv4: 
+- Host: 169.254.0.1 to Firewall: 169.254.0.2
+- 172.16.0.0/16 is routed via 172.16.0.2
+
+IPv6:
+- Host: rangeA::3 to Firewall rangeA::4
+- rangeB:8000::/65 routed via rangeA::4
+
 ## Install
 For normal install go to: https://www.proxmox.com/en/proxmox-ve/get-started
 
@@ -139,9 +153,9 @@ More information:
 ### Bridges and Network interfaces
 We will create 2 bridges and use the phisical network interface.
 ![Bridges](images/bridges.png)
-* **eth0:** Physical interface where we get our IPv4 and v6 traffic.
-* **vmbr0**: Will be shared to PfSense as WAN
-* **vmbr1**: Internal IPv4 network, will be shared as LAN
+* **eth0:** Physical interface where we get our public IPv4 and v6 traffic.
+* **vmbr0**: Will be shared to OpenSense as WAN, all the traffic to VMs will go trough here
+* **vmbr1**: Internal IPv4/v6 network, will be shared as LAN with no host IPv4
 
 ## Proxmox interface configuration
 ```
@@ -164,10 +178,13 @@ iface eth0 inet6 static
 
 # for single IPs
 auto vmbr0
-iface vmbr0 inet manual
+iface vmbr0 inet static
+  address 169.254.0.1
+  netmask 255.255.0.0
   bridge_ports none
   bridge_stp off
   bridge_fd 0
+  up ip route add 172.16.0.0/16 via 169.254.0.2 dev vmbr0
 
 iface vmbr0 inet6 static
   address rangeA::3
@@ -178,11 +195,7 @@ iface vmbr0 inet6 static
 # for an additional IPv4 subnet
 auto vmbr1
 iface vmbr1 inet static
-  address 172.16.0.1
-  netmask 255.255.0.0
-  bridge_ports none
-  bridge_stp off
-  bridge_fd 0
+  address 0.0.0.0
 ```
 ## Firewall (pfSense)
 We will need an out of band Firewall to be able to whitelist open ports and for this, we are going to use pfSense.
@@ -198,8 +211,9 @@ We will add 3 network cards and configure each one to one of the Bridges we crea
 #### LAN6 (WAN)
 Default gateways for the VM hosts.
 * IPv6: rangeA::4 /65
+* IPv4: 169.254.0.2 /16
 #### LAN
-* IPv4: 172.16.0.2/16 (NATed from Host)
+* IPv4: 172.16.0.1/16 (NATed from Host)
 * IPv6: rangeB:8000::2 /77
 ### WireGuard
 We configure WireGuard in a Site-to-Site setup as described here: https://docs.netgate.com/pfsense/en/latest/recipes/wireguard-s2s.html
