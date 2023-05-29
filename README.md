@@ -53,6 +53,33 @@ GRUB_CMDLINE_LINUX_DEFAULT="net.ifnames=0 biosdevname=0"
 ```
 Change /etc/network/interfaces to [Proxmox interface configuration](#proxmox-interface-configuration)
 
+
+### Optional settings
+
+```
+hostnamectl set-hostname proxmox-example
+timedatectl set-timezone Europe/Amsterdam
+printf "nameserver 1.1.1.1\nnameserver 2606:4700:4700::1111\n" > /etc/resolv.conf
+systemctl disable --now rpcbind rpcbind.socket
+sed -i 's/^\([^#].*\)/# \1/g' /etc/apt/sources.list.d/pve-enterprise.list
+echo "deb [arch=amd64] http://download.proxmox.com/debian/pve bullseye pve-no-subscription" > /etc/apt/sources.list.d/pve-no-subscription-repo.list
+sed -i "s|ftp.*.debian.org|ftp.debian.org|g" /etc/apt/sources.list
+apt update && apt -y upgrade && apt -y autoremove
+pveupgrade
+sed -Ezi.bak "s/(Ext.Msg.show\(\{\s+title: gettext\('No valid sub)/void\(\{ \/\/\1/g" /usr/share/javascript/proxmox-widget-toolkit/proxmoxlib.js && systemctl restart pveproxy.service
+apt install -y libguestfs-tools unzip iptables-persistent
+apt install net-tools
+echo "nf_conntrack" >> /etc/modules
+echo "net.ipv4.ip_forward=1" >> /etc/sysctl.d/99-proxmox.conf
+echo "net.ipv6.conf.all.forwarding=1" >> /etc/sysctl.d/99-proxmox.conf
+echo "net.netfilter.nf_conntrack_max=1048576" >> /etc/sysctl.d/99-proxmox.conf
+echo "net.netfilter.nf_conntrack_tcp_timeout_established=28800" >> /etc/sysctl.d/99-proxmox.conf
+# ZFS memory limits
+echo "options zfs zfs_arc_min=$[6 * 1024*1024*1024]" >> /etc/modprobe.d/99-zfs.conf
+echo "options zfs zfs_arc_max=$[12 * 1024*1024*1024]" >> /etc/modprobe.d/99-zfs.conf
+update-initramfs -u
+```
+
 ## Diagram
 ![Diagram](images/ProxmoxIPv6.png)
 ## Objectives 
