@@ -1,3 +1,4 @@
+- [Proxmox remote install](#install)
 - [Diagram](#diagram)
 - [Objectives](#objectives)
 - [Requirements](#requirements)
@@ -18,6 +19,40 @@
   - [](#)
 - [VM configuration](#vm-configuration)
   - [Docker configuration](#docker-configuration)
+
+## Install
+For normal install go to: https://www.proxmox.com/en/proxmox-ve/get-started
+
+To install remotely boot into a rescue system with QEMU support.
+
+### Download and install utilities
+```
+apt -y install ovmf wget 
+wget -O pve.iso http://download.proxmox.com/iso/proxmox-ve_7.4-1.iso
+```
+### Boot the installer and access it via VNC
+Change the password and the disk devices
+
+```
+printf "change vnc password\n%s\n" "password" | qemu-system-x86_64 -enable-kvm -cpu host -smp 4 -m 4096 -boot d -cdrom ./pve.iso -drive file=/dev/sda,format=raw,media=disk,if=virtio -drive file=/dev/sdb,format=raw,media=disk,if=virtio -vnc :0,password -monitor stdio -no-reboot
+```
+Connect to your public IP to port 5900 and the password you selected.
+
+### After install
+Run it under QEMU once more.
+
+```
+printf "change vnc password\n%s\n" "password" | qemu-system-x86_64 -enable-kvm -cpu host -smp 4 -m 4096 -boot d -drive file=/dev/sda,format=raw,media=disk,if=virtio -drive file=/dev/sdb,format=raw,media=disk,if=virtio -vnc :0,password -monitor stdio -no-reboot
+```
+Connect via VNC once again and change the following:
+```
+nano /etc/default/grub
+
+# This will disable "predictable" network interfaces, so the first interface is always eth0
+GRUB_CMDLINE_LINUX_DEFAULT="net.ifnames=0 biosdevname=0"
+```
+Change /etc/network/interfaces to [Proxmox interface configuration](#proxmox-interface-configuration)
+
 ## Diagram
 ![Diagram](images/ProxmoxIPv6.png)
 ## Objectives 
