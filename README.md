@@ -48,18 +48,39 @@ Connect via VNC once again and change the following:
 ```
 nano /etc/default/grub
 
-# This will disable "predictable" network interfaces, so the first interface is always eth0
-GRUB_CMDLINE_LINUX_DEFAULT="net.ifnames=0 biosdevname=0"
+# Edit this to disable "predictable" network interfaces, so the first interface is always eth0
+#GRUB_CMDLINE_LINUX_DEFAULT="net.ifnames=0 biosdevname=0"
+# Then run
+update-grub
+
+nano /etc/network/interfaces
+# Change brodge-ports from ens3 to eth0
+
+# Create a swapfile if you are NOT using ZFS
+fallocate -l 8G /swapfile
+chmod 600 /swapfile
+mkswap /swapfile
+echo "/swapfile swap swap defaults 0 0" >> /etc/fstab
+
+# Create ZFS volume for swap
+ zfs create -V 8G -b $(getconf PAGESIZE) -o compression=zle \
+              -o logbias=throughput -o sync=always\
+              -o primarycache=metadata -o secondarycache=none \
+              -o com.sun:auto-snapshot=false rpool/swap
+
+# Prepare it as swap partition:
+mkswap -f /dev/zvol/rpool/swap
+swapon /dev/zvol/rpool/swap
+
+# Add it to fstab
+echo "/dev/zvol/rpool/swap none swap discard 0 0" >> /etc/fstab
 ```
-Change /etc/network/interfaces to [Proxmox interface configuration](#proxmox-interface-configuration)
+Reboot into Promox and change /etc/network/interfaces as shown in [Proxmox interface configuration](#proxmox-interface-configuration)
 
 
 ### Optional settings
 
 ```
-hostnamectl set-hostname proxmox-example
-timedatectl set-timezone Europe/Amsterdam
-printf "nameserver 1.1.1.1\nnameserver 2606:4700:4700::1111\n" > /etc/resolv.conf
 systemctl disable --now rpcbind rpcbind.socket
 sed -i 's/^\([^#].*\)/# \1/g' /etc/apt/sources.list.d/pve-enterprise.list
 echo "deb [arch=amd64] http://download.proxmox.com/debian/pve bullseye pve-no-subscription" > /etc/apt/sources.list.d/pve-no-subscription-repo.list
