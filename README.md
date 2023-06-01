@@ -204,25 +204,26 @@ iface vmbr0 inet static
   bridge_fd 0
   up ip route add 172.16.0.0/16 via 169.254.0.2 dev vmbr0
 
+# WAN Interface in the Firewall VM
 iface vmbr0 inet6 static
   address rangeIPv6::3
   netmask 128
   up ip -6 route add rangeIPv6::4 dev vmbr0
   up ip -6 route add rangeIPv6::/64 via rangeIPv6::4  dev vmbr0
 
-# for an additional IPv4 subnet
+# LAN interface in the Firewall VM
 auto vmbr1
 iface vmbr1 inet static
   address 0.0.0.0
 ```
-## Firewall (pfSense)
-We will need an out of band Firewall to be able to whitelist open ports and for this, we are going to use pfSense.
+## Firewall VM (OpnSense)
+We will need an out of band Firewall to be able to whitelist open ports and for this, we are going to use OpnSense.
  
-More information here: https://docs.netgate.com/pfsense/en/latest/virtualization/virtualizing-pfsense-with-proxmox.html
+More information here: https://opnsense.org/
 
-We will add 3 network cards and configure each one to one of the Bridges we created before
+We will add 2 (WAN,LAN) network cards and configure each one to one of the Bridges we created before
 
-![pfSense](images/pfsense.png)
+![pfSense](images/Proxmox1.png)
 
 ### Interfaces assignments in pfSense
 ![pfSense](images/pfsense_interfaces2.png)
