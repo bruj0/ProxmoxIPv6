@@ -129,7 +129,8 @@ update-initramfs -u
 ## Requirements
 ### A IPv6 /64 network and a single IPv4
 For this article, we will use a /64 IPv6 network because its what commonly assiged by ISPs or hosting providers.
-Point to Point internal networks, routes IP traffic between the public internet an our internal network
+
+Point to Point internal networks will help route IP traffic between the public internet an our internal network avoiding ARP resolution.
 
 ### IPv4:
 Host:
@@ -137,26 +138,26 @@ Host:
     * Port forward to VMs
   * vmbr0: 169.254.0.1/16 
     * Routes 172.16.0.0/16 via 169.254.0.2 (Firewall WAN)
-Firewall:
+
+Firewall VM:
   * LAN: 172.16.0.1/16
   * WAN: 169.254.0.2/16
     * Rotes 0.0.0.0 via 169.254.0.2
 
 ### IPv6
 Host:
-  * eth0: rangeIPv6::2 (eth0)
-  * vmbr0: rangeIPv6::3 (vmbr0)
+  * eth0: rangeIPv6::2/128 (eth0)
+  * vmbr0: rangeIPv6::3/128 (vmbr0)
     * rangeIPv6::4 dev vmbr0  (Firewall)
     * rangeIPv6::/64 via rangeIPv6::4
 
-Firewall:
-  * WAN: rangeIPv6::4
-  * LAN: rangeIPv6::/64
-    * rangeIPv6:1:/64 VM LAN, Containers and Tunnel, divided in 4096 /77 subnets
-    * rangeIPv6:1::/65
-      * rangeIPv6:8000::/77 (LAN in PfSense)
-      * rangeIPv6:8008::/77 (WireGuard Tunnel)
-      * rangeIPv6:8010::/77 (Docker in VM1)
+Firewall VM:
+  * WAN: rangeIPv6::4/128
+  * LAN: rangeIPv6::/64 (Divided in 65536 /80)
+    * rangeIPv6:1::/80 (Reserved for Host to Firewall)
+    * rangeIPv6:2::/80 (WireGuard Tunnel)
+    * rangeIPv6:3::/80 (VMs main IP)
+    * rangeIPv6:4-ffff:/80 (Docker networks)
 
 ## Hypervisor
 We will need a way to provision VMs, for this article we selected Proxmox
