@@ -24,17 +24,58 @@
 ## Description
 This howto will help you set up a Promox host with a fully routed IPv4 and IPv6 network for VMs with an out of band firewall.
 
-We create 2 routed internal networks between the host and the Firewall
+Point to Point internal networks will help route IP traffic between the public internet an our internal network avoiding ARP resolution, `169.254.0.0/16` and `range::1/80`
 
-IPv4: 
-- Host: 169.254.0.1 to Firewall: 169.254.0.2
-- 172.16.0.0/16 is routed via 172.16.0.2
+### Routes
+IPv4 internal NAT: 
+- 169.254.0.0/16 dev vmbr0 src 169.254.0.1 (vmbr0)
+- 172.16.0.0/16 via 169.254.0.2 (FW LAN) dev vmbr0 
 
 IPv6:
-- Point to Pint rangeIPv6::3 to Firewall rangeIPv6::4
-- rangeIPv6::/64 routed via rangeIPv6::4
+- range::2 dev eth0  (eth0)
+- range::3 dev vmbr0 (vmbr0)
+- range::4 dev vmbr0 (FW WAN)
+- range::/64 via range::4 dev vmbr0
+- default via fe80::1 dev eth0 
 
-## Install
+### Ranges
+#### IPv4
+* Host:
+  * eth0: Public IP
+    * Port forward to VMs
+  * vmbr0: 169.254.0.1/16 (Host to WAN and NAT)
+    * Routes 172.16.0.0/16 via 169.254.0.2 (Firewall WAN)
+
+* Firewall VM:
+  * LAN: 172.16.0.1/16
+  * WAN: 169.254.0.2/16
+    * Rotes 0.0.0.0 via 169.254.0.2
+#### IPv6
+* Host
+  * eth0: range::2/128 (eth0)
+  * vmbr0: range::3/128 (vmbr0)
+    * range::4 dev vmbr0  (Firewall)
+    * range::/64 via range::4
+
+* Firewall VM
+  * WAN: range::4/128
+  * LAN: range::/64 (Divided in 65536 /80)
+    * range:1::/80 (Reserved for Host to Firewall)
+    * range:2::/80 (WireGuard Tunnel)
+    * range:3::/80 (VMs main IP)
+    * range:4-ffff:/80 (Docker networks)
+## Diagram
+![Diagram](images/ProxmoxIPv6v2.drawio.png)
+## Objectives 
+* Fully routed IPv6 and NATed IPv4 to VMs
+   * Each VM will receive a IPv6 from a /77 subnet
+     * Each container under this VM will receive an IPv6 automatically.
+* IPv4 to IPv6 Tunnel using WireGuard
+* Out of band Firewall
+   * PfSense controlling the access to all public traffic
+   * Having an out of band firewall, meaning outside of the VMs. This will increase the security of the system
+
+## Proxmox Install
 For normal install go to: https://www.proxmox.com/en/proxmox-ve/get-started
 
 To install remotely boot into a rescue system with QEMU support.
@@ -115,49 +156,9 @@ echo "options zfs zfs_arc_max=$[12 * 1024*1024*1024]" >> /etc/modprobe.d/99-zfs.
 update-initramfs -u
 ```
 
-## Diagram
-![Diagram](images/ProxmoxIPv6.png)
-## Objectives 
-* Fully routed IPv6 and NATed IPv4 to VMs
-   * Each VM will receive a IPv6 from a /77 subnet
-     * Each container under this VM will receive an IPv6 automatically.
-* IPv4 to IPv6 Tunnel using WireGuard
-* Out of band Firewall
-   * PfSense controlling the access to all public traffic
-   * Having an out of band firewall, meaning outside of the VMs. This will increase the security of the system
 
 ## Requirements
-### A IPv6 /64 network and a single IPv4
-For this article, we will use a /64 IPv6 network because its what commonly assiged by ISPs or hosting providers.
 
-Point to Point internal networks will help route IP traffic between the public internet an our internal network avoiding ARP resolution.
-
-### IPv4:
-Host:
-  * eth0: Public IP
-    * Port forward to VMs
-  * vmbr0: 169.254.0.1/16 
-    * Routes 172.16.0.0/16 via 169.254.0.2 (Firewall WAN)
-
-Firewall VM:
-  * LAN: 172.16.0.1/16
-  * WAN: 169.254.0.2/16
-    * Rotes 0.0.0.0 via 169.254.0.2
-
-### IPv6
-Host:
-  * eth0: rangeIPv6::2/128 (eth0)
-  * vmbr0: rangeIPv6::3/128 (vmbr0)
-    * rangeIPv6::4 dev vmbr0  (Firewall)
-    * rangeIPv6::/64 via rangeIPv6::4
-
-Firewall VM:
-  * WAN: rangeIPv6::4/128
-  * LAN: rangeIPv6::/64 (Divided in 65536 /80)
-    * rangeIPv6:1::/80 (Reserved for Host to Firewall)
-    * rangeIPv6:2::/80 (WireGuard Tunnel)
-    * rangeIPv6:3::/80 (VMs main IP)
-    * rangeIPv6:4-ffff:/80 (Docker networks)
 
 ## Hypervisor
 We will need a way to provision VMs, for this article we selected Proxmox
@@ -189,7 +190,7 @@ iface eth0 inet static
   gateway xxx.76.28.161
 
 iface eth0 inet6 static
-  address rangeIPv6::2
+  address range::2
   netmask 128
   gateway fe80::1
   up sysctl -p
@@ -206,10 +207,10 @@ iface vmbr0 inet static
 
 # WAN Interface in the Firewall VM
 iface vmbr0 inet6 static
-  address rangeIPv6::3
+  address range::3
   netmask 128
-  up ip -6 route add rangeIPv6::4 dev vmbr0
-  up ip -6 route add rangeIPv6::/64 via rangeIPv6::4  dev vmbr0
+  up ip -6 route add range::4 dev vmbr0
+  up ip -6 route add range::/64 via range::4  dev vmbr0
 
 # LAN interface in the Firewall VM
 auto vmbr1
@@ -229,11 +230,11 @@ We will add 2 (WAN,LAN) network cards and configure each one to one of the Bridg
 ![pfSense](images/pfsense_interfaces2.png)
 #### LAN6 (WAN)
 Default gateways for the VM hosts.
-* IPv6: rangeIPv6::4 /65
+* IPv6: range::4 /65
 * IPv4: 169.254.0.2 /16
 #### LAN
 * IPv4: 172.16.0.1/16 (NATed from Host)
-* IPv6: rangeIPv6:8000::2 /77
+* IPv6: range:8000::2 /77
 ### WireGuard
 We configure WireGuard in a Site-to-Site setup as described here: https://docs.netgate.com/pfsense/en/latest/recipes/wireguard-s2s.html
 
@@ -253,7 +254,7 @@ With this configuration:
 | TUN IPv6 Address | `fda2:5d88:d5a3:1d4d::1/64`                         |
 | Listen Port    | `51820`                                                   |
 | SatelliteGW | `fda2:5d88:d5a3:1d4d::2` via TUN interface |
-| Static Route| 	`rangeIPv6:8008::/77`	via SatelliteGW |
+| Static Route| 	`range:8008::/77`	via SatelliteGW |
 
 ![pfSense](images/pfsense_wireguard.png)
 
@@ -263,28 +264,28 @@ With this configuration:
 | Endpoint IP Address | `Proxmox IPv4`                                         |
 | TUN IPv6 Address | `fda2:5d88:d5a3:1d4d::2/64`     |
 | Listen Port    | `51820`                                             |
-| LAN IPv6     | `rangeIPv6:8008::1/77`  |
+| LAN IPv6     | `range:8008::1/77`  |
 | GW IPv6 | `fda2:5d88:d5a3:1d4d::1/64` via TUN  |
-| DHCPv6 on LAN|  `rangeIPv6:8008:1::` to `rangeIPv6:800f:ffff:ffff:ffff`
+| DHCPv6 on LAN|  `range:8008:1::` to `range:800f:ffff:ffff:ffff`
 | RA on LAN| Assisted|
 
 ![pfSense](images/pfsense_wireguardPeer.png)
 
 ### Routing in pfSense
 
-The default GW for IPv6 is rangeIPv6::3 trough the WAN interface, this is because this interface is connected to the KVM bridge that has access to the connection to the internet.
+The default GW for IPv6 is range::3 trough the WAN interface, this is because this interface is connected to the KVM bridge that has access to the connection to the internet.
 
 Each Docker network in the VM host gets a static route so they can communicate between each other.
 
-For this we need to define a Gateway  as rangeIPv6:8000:1:0:1 (VM1) trough the LAN interface called "DockerVM1" in the picture.
+For this we need to define a Gateway  as range:8000:1:0:1 (VM1) trough the LAN interface called "DockerVM1" in the picture.
 
 SatelliteGW is the gateway on the other side of the WireGuard Tunnel.
 
 ![pfSense bridge](images/pfsense_gateways.png)
 
 Finally we add a 2 static routes:
-* Containers in VM1:  Our container subnet rangeIPv6:8010::/77 can be reached trough the "DockerVM1" gateway that means trough the LAN interface via the host at rangeIPv6:8000:1:0:1
-* IPv4 to Ipv6 Tunnel: rangeIPv6:8008::/77 will be served to clients connected to the WireGuard tunnel via the other side of the TUN1 interface at fda2:5d88:d5a3:1d4d::2
+* Containers in VM1:  Our container subnet range:8010::/77 can be reached trough the "DockerVM1" gateway that means trough the LAN interface via the host at range:8000:1:0:1
+* IPv4 to Ipv6 Tunnel: range:8008::/77 will be served to clients connected to the WireGuard tunnel via the other side of the TUN1 interface at fda2:5d88:d5a3:1d4d::2
 
 ![pfSense bridge](images/pfsense_static_routes.png)
 
@@ -298,7 +299,7 @@ Allow all IPv4 and IPv6 in the LAN interface
 ![pfSense lan fw](images/pfsense_lan_fw.png)
 ### LAN DHCPv6
 This is the VM ipv6 range that will be managed by the DHCP
-* Enable DHCPv6 server with range: rangeIPv6:8000:2:: to rangeIPv6:ffff:ffff:ffff
+* Enable DHCPv6 server with range: range:8000:2:: to range:ffff:ffff:ffff
 * Enable Assisted RA
 * NO dhcpv6 on LAN6(wan)
 ### 
@@ -308,20 +309,20 @@ This is the VM ipv6 range that will be managed by the DHCP
 ```
 docker0: flags=4099<UP,BROADCAST,MULTICAST>  mtu 1500
         inet 172.17.0.1  netmask 255.255.0.0  broadcast 172.17.255.255
-        inet6 rangeIPv6:8010::1  prefixlen 77  scopeid 0x0<global>
+        inet6 range:8010::1  prefixlen 77  scopeid 0x0<global>
 
 ens19: flags=4675<UP,BROADCAST,RUNNING,ALLMULTI,MULTICAST>  mtu 1500
         inet 172.16.99.10  netmask 255.255.0.0  broadcast 172.16.255.255
-        inet6 rangeIPv6:8000:1:0:1  prefixlen 128  scopeid 0x0<global>
+        inet6 range:8000:1:0:1  prefixlen 128  scopeid 0x0<global>
 ```
 * route
 ```
-::1 dev lo proto kernel metric 256 pref medium
-rangeIPv6:8000:1:0:1 dev ens19 proto kernel metric 100 pref medium
-rangeIPv6:8000::/77 dev ens19 proto ra metric 100 pref medium
-rangeIPv6:8008::/77 dev docker0 metric 1024 linkdown pref medium
-rangeIPv6:8010::/77 dev docker0 proto kernel metric 256 linkdown pref medium
-rangeIPv6:8010::/77 dev docker0 metric 1024 linkdown pref medium
+::1 dev lo
+range:8000:1:0:1 dev ens19 proto kernel metric 100 pref medium
+range:8000::/77 dev ens19 proto ra metric 100 pref medium
+range:8008::/77 dev docker0 metric 1024 linkdown pref medium
+range:8010::/77 dev docker0 proto kernel metric 256 linkdown pref medium
+range:8010::/77 dev docker0 metric 1024 linkdown pref medium
 fe80::/64 dev ens19 proto kernel metric 100 pref medium
 fe80::/64 dev docker0 proto kernel metric 256 linkdown pref medium
 default via fe80::3039:93ff:fe18:ccdd dev ens19 proto ra metric 20100 pref high
@@ -332,13 +333,13 @@ default via fe80::3039:93ff:fe18:ccdd dev ens19 proto ra metric 20100 pref high
 ### Docker configuration
 More information: https://docs.docker.com/v17.09/engine/userguide/networking/default_network/ipv6/#routed-network-environment
 
-We configure docker to use a /77 subnets under rangeIPv6
+We configure docker to use a /77 subnets under range
 
 * /etc/docker/daemon.json
 ```
 {
   "ipv6": true,
-  "fixed-cidr-v6": "rangeIPv6:8010::/77"
+  "fixed-cidr-v6": "range:8010::/77"
 }
 
 ```
@@ -351,14 +352,14 @@ Test it by using an alpine container:
     inet6 ::1/128 scope host
        valid_lft forever preferred_lft forever
 11: eth0@if12: <BROADCAST,MULTICAST,UP,LOWER_UP,M-DOWN> mtu 1500 state UP
-    inet6 rangeIPv6:8010:242:ac11:2/77 scope global flags 02
+    inet6 range:8010:242:ac11:2/77 scope global flags 02
        valid_lft forever preferred_lft forever
     inet6 fe80::42:acff:fe11:2/64 scope link
        valid_lft forever preferred_lft forever
 / # ip -6 route
-rangeIPv6:8010::/77 dev eth0  metric 256
+range:8010::/77 dev eth0  metric 256
 fe80::/64 dev eth0  metric 256
-default via rangeIPv6:8010::1 dev eth0  metric 1024
+default via range:8010::1 dev eth0  metric 1024
 multicast ff00::/8 dev eth0  metric 256
 / # ping -6 www.google.com
 PING www.google.com (2a00:1450:4001:810::2004): 56 data bytes
@@ -371,7 +372,7 @@ round-trip min/avg/max = 5.769/5.827/5.885 ms
 
 ```
 
-From here we can see we got rangeIPv6:ac11:2/77 and ping to Google over IPv6 works.
+From here we can see we got range:ac11:2/77 and ping to Google over IPv6 works.
 
 # Create a Debian template
 From https://cloud.debian.org/images/cloud/ Download the latest qcow2 file.
