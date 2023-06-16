@@ -30,7 +30,7 @@
 - [Docker configuration](#docker-configuration)
 
 # Description
-This howto will help you set up a Promox host with a fully routed IPv4 and IPv6 network for VMs with an out of band firewall.
+This howto will help you set up a Proxmox host with a fully routed IPv4 and IPv6 network for VMs with an out of band firewall.
 
 Point to Point internal networks will help route IP traffic between the public internet an our internal network avoiding ARP resolution, `169.254.0.0/16` and `range::1/80`
 ## Objectives 
